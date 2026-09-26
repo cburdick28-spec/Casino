@@ -8,6 +8,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { playSound } from "@/utils/audio";
+import { isUnlimitedAccount } from "@/utils/auth";
+import { saveGameState, loadGameState, clearGameState } from "@/utils/saveGame";
 import {
   STARTING_CASH,
   STARTING_REPUTATION,
@@ -72,9 +74,10 @@ function makeInitialGames() {
   return games;
 }
 
-function makeInitialState() {
+function makeInitialState(unlimitedMoney = false) {
   return {
-    cash: STARTING_CASH,
+    cash: unlimitedMoney ? Infinity : STARTING_CASH,
+    unlimitedMoney,
     reputation: STARTING_REPUTATION,
     day: 1,
     tickCount: 0,
@@ -125,8 +128,26 @@ function pushLog(logs, text, type = LOG_TYPES.INFO) {
 
 // --- The hook ---------------------------------------------------------------
 
-export function useGameLoop() {
-  const [state, setState] = useState(makeInitialState);
+export function useGameLoop(email) {
+  const unlimited = isUnlimitedAccount(email);
+  const unlimitedRef = useRef(unlimited);
+  unlimitedRef.current = unlimited;
+
+  const [state, setState] = useState(() => {
+    const saved = email ? loadGameState(email) : null;
+    if (saved) {
+      // A previously-saved game exists for this account. Re-assert the
+      // unlimited-money flag in case the special account was added/removed
+      // after this save was written, and make sure legacy saves (from
+      // before accounts existed) still carry the flag.
+      return {
+        ...saved,
+        unlimitedMoney: unlimited,
+        cash: unlimited ? Infinity : saved.cash,
+      };
+    }
+    return makeInitialState(unlimited);
+  });
   const intervalRef = useRef(null);
   const pausedRef = useRef(false);
 
@@ -134,6 +155,19 @@ export function useGameLoop() {
   useEffect(() => {
     pausedRef.current = Boolean(state.activeEvent) || state.gameOver;
   }, [state.activeEvent, state.gameOver]);
+
+  // Persist to this account's save slot whenever the sim state changes.
+  useEffect(() => {
+    if (email) saveGameState(email, state);
+  }, [email, state]);
+
+  // The unlimited-money account's cash is always Infinity, regardless of
+  // what arithmetic ran to get there — this is the single choke point
+  // every action routes its final cash value through.
+  const finalizeCash = useCallback((value) => {
+    if (unlimitedRef.current) return Infinity;
+    return Math.round(value * 100) / 100;
+  }, []);
 
   // --- The main tick ------------------------------------------------------
   const runTick = useCallback(() => {
@@ -268,6 +302,8 @@ export function useGameLoop() {
       const tickCount = prev.tickCount + 1;
       const day = 1 + Math.floor(tickCount / TICKS_PER_DAY);
 
+      if (unlimitedRef.current) cash = Infinity;
+
       let gameOver = false;
       let gameOverReason = "";
       if (cash <= -2500) {
@@ -346,7 +382,7 @@ export function useGameLoop() {
       playSound(SOUND.UPGRADE);
       return {
         ...prev,
-        cash: Math.round((prev.cash - cost) * 100) / 100,
+        cash: finalizeCash(prev.cash - cost),
         logs: pushLog(
           prev.logs,
           `🔧 Upgraded ${game.name} to level ${game.level + 1}.`,
@@ -382,7 +418,7 @@ export function useGameLoop() {
       playSound(SOUND.UPGRADE);
       return {
         ...prev,
-        cash: Math.round((prev.cash - game.unlockCost) * 100) / 100,
+        cash: finalizeCash(prev.cash - game.unlockCost),
         logs: pushLog(prev.logs, `✨ Unlocked ${game.name}!`, LOG_TYPES.INFO),
         games: {
           ...prev.games,
@@ -411,7 +447,7 @@ export function useGameLoop() {
       playSound(SOUND.UPGRADE);
       return {
         ...prev,
-        cash: Math.round((prev.cash - cost) * 100) / 100,
+        cash: finalizeCash(prev.cash - cost),
         security: { ...prev.security, nodes: prev.security.nodes + 1 },
         logs: pushLog(
           prev.logs,
@@ -429,7 +465,7 @@ export function useGameLoop() {
       playSound(SOUND.UPGRADE);
       return {
         ...prev,
-        cash: Math.round((prev.cash + CHEATER_CAUGHT_BONUS) * 100) / 100,
+        cash: finalizeCash(prev.cash + CHEATER_CAUGHT_BONUS),
         cheaters: prev.cheaters.filter((c) => c.id !== cheaterId),
         stats: { ...prev.stats, cheatersCaught: prev.stats.cheatersCaught + 1 },
         logs: pushLog(
@@ -447,8 +483,7 @@ export function useGameLoop() {
       const choice = prev.activeEvent.choices[choiceIndex];
       if (!choice) return prev;
       const effects = choice.effects || {};
-      const cash =
-        Math.round((prev.cash + (effects.cash || 0)) * 100) / 100;
+      const cash = finalizeCash(prev.cash + (effects.cash || 0));
       const reputation = clamp(
         prev.reputation + (effects.reputation || 0),
         0,
@@ -469,8 +504,9 @@ export function useGameLoop() {
   }, []);
 
   const restartGame = useCallback(() => {
-    setState(makeInitialState());
-  }, []);
+    if (email) clearGameState(email);
+    setState(makeInitialState(unlimitedRef.current));
+  }, [email]);
 
   return {
     state,
