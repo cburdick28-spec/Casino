@@ -1,0 +1,21 @@
+{
+  "name": "cyber-tycoon-neon-casino",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cyber-Tycoon: Neon Casino — a browser-based cyberpunk casino management simulator built with Next.js (App Router).",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "14.2.35",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "eslint-config-next": "14.2.35"
+  }
+}
