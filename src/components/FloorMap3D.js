@@ -7,11 +7,12 @@
 // simulation logic of its own, same as the 2D FloorPanel.
 //
 // Each game module is a small row of individual machines/tables instead
-// of one abstract pedestal: Neon Slots gets a bank of cabinets,
-// Holo-Blackjack and Neon Poker get rows of felt tables, and High-Roller
-// Roulette / Quantum Dice get one (or more, at higher capacity) big
-// single tables — a spinning wheel and a dice pit respectively. Machine
-// count scales with the module's capacity level, so upgrading the floor
+// of one abstract pedestal: Neon Slots and Neon Sportsbook get banks of
+// cabinets/kiosks, Holo-Blackjack and Neon Poker get rows of felt
+// tables, and High-Roller Roulette / Quantum Dice / Cyber Baccarat get
+// one (or more, at higher capacity) big single tables — a spinning
+// wheel, a dice pit, and a VIP octagon respectively. Machine count
+// scales with the module's capacity level, so upgrading the floor
 // visibly grows it. Security nodes patrol as rotating turrets, cheaters
 // pulse a red marker over whatever zone they're hitting, and a scatter of
 // ambient Sparkles plus neon pillars dress the room.
@@ -21,16 +22,18 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Grid, Html, Float, Sparkles } from "@react-three/drei";
 
 const ZONES = {
-  slots: { centerX: -10, color: "#33fff0" },
-  blackjack: { centerX: -5, color: "#ff3ec8" },
-  roulette: { centerX: 0, color: "#b6ff3a" },
-  poker: { centerX: 5, color: "#ffb347" },
-  dice: { centerX: 10, color: "#ff6b4a" },
+  slots: { centerX: -15, color: "#33fff0" },
+  blackjack: { centerX: -10, color: "#ff3ec8" },
+  roulette: { centerX: -5, color: "#b6ff3a" },
+  poker: { centerX: 0, color: "#ffb347" },
+  dice: { centerX: 5, color: "#ff6b4a" },
+  baccarat: { centerX: 10, color: "#ffd23a" },
+  sportsbook: { centerX: 15, color: "#4ad6ff" },
 };
 
-// Big single-table games (one wheel, one pit) don't multiply the same way
-// a bank of slot cabinets or a row of card tables does.
-const SINGLE_TABLE_GAMES = new Set(["roulette", "dice"]);
+// Big single-table games (one wheel, one pit, one VIP table) don't
+// multiply the same way a bank of cabinets or a row of card tables does.
+const SINGLE_TABLE_GAMES = new Set(["roulette", "dice", "baccarat"]);
 
 function machineCount(game) {
   if (SINGLE_TABLE_GAMES.has(game.key)) {
@@ -239,6 +242,90 @@ function DiceTable({ position, color, active, phase }) {
   );
 }
 
+function BaccaratTable({ position, color, active, phase }) {
+  const ringRef = useRef(null);
+  useFrame(({ clock }) => {
+    if (!ringRef.current) return;
+    ringRef.current.material.emissiveIntensity = active
+      ? 0.7 + Math.sin(clock.getElapsedTime() * 1.5 + phase) * 0.3
+      : 0.08;
+  });
+
+  return (
+    <group position={position}>
+      {/* pedestal base */}
+      <mesh position={[0, 0.3, 0]}>
+        <cylinderGeometry args={[0.35, 0.4, 0.6, 8]} />
+        <meshStandardMaterial color="#141a26" metalness={0.5} roughness={0.5} />
+      </mesh>
+      {/* octagonal VIP felt top */}
+      <mesh position={[0, 0.62, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.65, 0.65, 0.08, 8]} />
+        <meshStandardMaterial
+          color={active ? "#1a0f08" : "#2a3346"}
+          emissive={active ? color : "#000000"}
+          emissiveIntensity={active ? 0.15 : 0}
+          toneMapped={false}
+        />
+      </mesh>
+      {/* glowing gold rim */}
+      <mesh ref={ringRef} position={[0, 0.63, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.6, 0.65, 8]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.7} toneMapped={false} />
+      </mesh>
+      {/* player & banker chip piles */}
+      {[-0.3, 0.3].map((dx, i) => (
+        <group key={i} position={[dx, 0.66, 0.15]}>
+          {[0, 1, 2, 3].map((j) => (
+            <mesh key={j} position={[0, j * 0.03, 0]}>
+              <cylinderGeometry args={[0.08, 0.08, 0.025, 12]} />
+              <meshStandardMaterial color={color} emissive={color} emissiveIntensity={active ? 0.5 : 0.05} toneMapped={false} />
+            </mesh>
+          ))}
+        </group>
+      ))}
+    </group>
+  );
+}
+
+function SportsbookKiosk({ position, color, active, phase }) {
+  const screenRef = useRef(null);
+  const tickerRef = useRef(null);
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    if (screenRef.current) {
+      screenRef.current.material.emissiveIntensity = active ? 0.7 + Math.sin(t * 1.2 + phase) * 0.3 : 0.08;
+    }
+    if (tickerRef.current) {
+      tickerRef.current.position.x = active ? ((t * 0.4 + phase) % 1) * 0.7 - 0.35 : -0.35;
+    }
+  });
+
+  return (
+    <group position={position}>
+      {/* kiosk body */}
+      <mesh position={[0, 0.7, 0]}>
+        <boxGeometry args={[0.5, 1.4, 0.3]} />
+        <meshStandardMaterial color="#141a26" metalness={0.5} roughness={0.5} />
+      </mesh>
+      {/* big odds screen */}
+      <mesh ref={screenRef} position={[0, 1.05, 0.16]}>
+        <boxGeometry args={[0.42, 0.55, 0.03]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.7} toneMapped={false} />
+      </mesh>
+      {/* scrolling ticker bar */}
+      <mesh position={[0, 0.65, 0.16]}>
+        <boxGeometry args={[0.42, 0.08, 0.02]} />
+        <meshStandardMaterial color="#0d1119" />
+      </mesh>
+      <mesh ref={tickerRef} position={[0, 0.65, 0.17]}>
+        <boxGeometry args={[0.12, 0.05, 0.01]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={active ? 1 : 0.1} toneMapped={false} />
+      </mesh>
+    </group>
+  );
+}
+
 function GuestCrowd({ count, spreadX, color }) {
   const groupRef = useRef(null);
   const offsets = useMemo(
@@ -315,6 +402,10 @@ function GameZone({ game }) {
             return <PokerTable {...common} />;
           case "dice":
             return <DiceTable {...common} />;
+          case "baccarat":
+            return <BaccaratTable {...common} />;
+          case "sportsbook":
+            return <SportsbookKiosk {...common} />;
           default:
             return <SlotMachine {...common} />;
         }
@@ -371,7 +462,7 @@ function NeonPillar({ position }) {
 
 function SecurityTurret({ index, total }) {
   const ref = useRef(null);
-  const radius = 15;
+  const radius = 20;
   const angle = (index / Math.max(total, 1)) * Math.PI * 2;
   const position = [Math.cos(angle) * radius, 0, Math.sin(angle) * radius];
 
@@ -424,11 +515,13 @@ function CheaterMarker({ cheater }) {
 }
 
 const PILLAR_POSITIONS = [
-  [-13.5, 0, -4],
-  [-13.5, 0, 4],
-  [0, 0, -4.5],
-  [13.5, 0, -4],
-  [13.5, 0, 4],
+  [-18.5, 0, -4],
+  [-18.5, 0, 4],
+  [-9, 0, -4.5],
+  [0, 0, -5],
+  [9, 0, -4.5],
+  [18.5, 0, -4],
+  [18.5, 0, 4],
 ];
 
 function Scene({ games, cheaters, security }) {
@@ -441,16 +534,16 @@ function Scene({ games, cheaters, security }) {
       <directionalLight position={[6, 10, 4]} intensity={0.4} color="#9d4bff" />
 
       <Grid
-        args={[36, 36]}
+        args={[50, 50]}
         cellColor="#2a3346"
         sectionColor="#33fff0"
         cellThickness={0.5}
         sectionThickness={1}
-        fadeDistance={36}
+        fadeDistance={50}
         infiniteGrid
       />
 
-      <Sparkles count={90} scale={[30, 4, 14]} size={2} speed={0.2} color="#9d4bff" opacity={0.5} />
+      <Sparkles count={130} scale={[44, 4, 16]} size={2} speed={0.2} color="#9d4bff" opacity={0.5} />
 
       {gameList.map((game) => (
         <GameZone key={game.key} game={game} />
@@ -471,7 +564,7 @@ function Scene({ games, cheaters, security }) {
       <OrbitControls
         enablePan={false}
         minDistance={8}
-        maxDistance={34}
+        maxDistance={48}
         maxPolarAngle={Math.PI / 2.1}
       />
     </>
@@ -482,12 +575,12 @@ export default function FloorMap3D({ games, cheaters, security }) {
   return (
     <div className="floor3d-canvas-wrap">
       <Canvas
-        camera={{ position: [0, 11, 20], fov: 45 }}
+        camera={{ position: [0, 14, 30], fov: 45 }}
         dpr={[1, 1.5]}
         gl={{ antialias: true }}
       >
         <color attach="background" args={["#0a0e17"]} />
-        <fog attach="fog" args={["#0a0e17", 18, 40]} />
+        <fog attach="fog" args={["#0a0e17", 24, 54]} />
         <Suspense fallback={null}>
           <Scene games={games} cheaters={cheaters} security={security} />
         </Suspense>

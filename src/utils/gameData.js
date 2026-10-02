@@ -66,6 +66,28 @@ export const GAME_DEFS = {
     unlockCost: 5000,
     description: "A levitating craps pit where the dice never touch the felt.",
   },
+  baccarat: {
+    key: "baccarat",
+    name: "Cyber Baccarat",
+    icon: "🎴",
+    baseCapacity: 6,
+    baseUpkeep: 140,
+    avgBet: 70,
+    unlocked: false,
+    unlockCost: 7000,
+    description: "High-stakes punto banco for VIPs who don't blink.",
+  },
+  sportsbook: {
+    key: "sportsbook",
+    name: "Neon Sportsbook",
+    icon: "📺",
+    baseCapacity: 20,
+    baseUpkeep: 180,
+    avgBet: 25,
+    unlocked: false,
+    unlockCost: 8000,
+    description: "Wall-sized holo-screens streaming odds on everything.",
+  },
 };
 
 // Capacity/upkeep growth per upgrade level, and cost curve for upgrading.
