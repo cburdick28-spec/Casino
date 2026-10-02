@@ -307,6 +307,96 @@ body {
   text-align: center;
 }
 
+/* --- 3D floor map --------------------------------------------------------- */
+
+.floor3d-panel {
+  margin: 0 20px 16px;
+}
+
+.floor3d-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border-dim);
+  padding-bottom: 10px;
+}
+
+.floor3d-panel-title {
+  margin: 0;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.floor3d-toggle {
+  padding: 6px 12px;
+}
+
+.floor3d-canvas-wrap {
+  width: 100%;
+  height: 420px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-dim);
+  background: #0a0e17;
+  cursor: grab;
+}
+
+.floor3d-canvas-wrap:active {
+  cursor: grabbing;
+}
+
+.floor3d-loading {
+  width: 100%;
+  height: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  border: 1px solid var(--border-dim);
+  border-radius: 8px;
+  background: #0a0e17;
+}
+
+.floor3d-label {
+  pointer-events: none;
+  background: rgba(10, 14, 23, 0.85);
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  white-space: nowrap;
+  text-align: center;
+  transform: translateY(-8px);
+}
+
+.floor3d-label-title {
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.floor3d-label-sub {
+  color: var(--text-dim);
+  font-size: 10px;
+  margin-top: 2px;
+}
+
+.floor3d-cheater-tag {
+  pointer-events: none;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--neon-magenta);
+  background: rgba(10, 14, 23, 0.85);
+  border: 1px solid var(--neon-magenta);
+  border-radius: 6px;
+  padding: 3px 6px;
+  white-space: nowrap;
+  transform: translateY(-16px);
+}
+
 /* --- Dashboard grid ---------------------------------------------------- */
 
 .dashboard-grid {

@@ -10,6 +10,7 @@
 // across reloads via localStorage.
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useGameLoop } from "@/hooks/useGameLoop";
 import { unlockAudio } from "@/utils/audio";
 import { getSession, signOut } from "@/utils/auth";
@@ -20,6 +21,14 @@ import ShopPanel from "@/components/ShopPanel";
 import LogTicker from "@/components/LogTicker";
 import EventModal from "@/components/EventModal";
 import GameOverModal from "@/components/GameOverModal";
+
+// three.js/WebGL needs the browser — load it client-only, with a plain
+// fallback while the chunk fetches so the rest of the dashboard isn't
+// blocked waiting on it.
+const FloorMap3D = dynamic(() => import("@/components/FloorMap3D"), {
+  ssr: false,
+  loading: () => <div className="floor3d-loading">Booting 3D renderer…</div>,
+});
 
 export default function HomePage() {
   const [email, setEmail] = useState(null);
@@ -48,6 +57,7 @@ export default function HomePage() {
 
 function Dashboard({ email, onSignOut }) {
   const { state, actions, helpers } = useGameLoop(email);
+  const [show3D, setShow3D] = useState(true);
 
   return (
     <main className="app-root" onClick={unlockAudio}>
@@ -60,6 +70,24 @@ function Dashboard({ email, onSignOut }) {
         unlimitedMoney={state.unlimitedMoney}
         onSignOut={onSignOut}
       />
+
+      <section className="panel floor3d-panel">
+        <div className="floor3d-panel-header">
+          <h2 className="panel-title floor3d-panel-title">
+            <span className="panel-title-icon">🧊</span> 3D Floor Map
+          </h2>
+          <button
+            type="button"
+            className="btn btn-primary floor3d-toggle"
+            onClick={() => setShow3D((v) => !v)}
+          >
+            {show3D ? "Hide 3D view" : "Show 3D view"}
+          </button>
+        </div>
+        {show3D && (
+          <FloorMap3D games={state.games} cheaters={state.cheaters} security={state.security} />
+        )}
+      </section>
 
       <div className="dashboard-grid">
         <ShopPanel
