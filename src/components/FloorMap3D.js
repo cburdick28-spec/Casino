@@ -6,27 +6,34 @@
 // read-out of the same state useGameLoop already produces — it holds no
 // simulation logic of its own, same as the 2D FloorPanel.
 //
-// Each game module is now a small row of individual machines/tables
-// instead of one abstract pedestal: Neon Slots gets a bank of cabinets,
-// Holo-Blackjack gets a row of felt tables, High-Roller Roulette gets
-// one (or more, at higher capacity) spinning wheels. Machine count scales
-// with the module's capacity level, so upgrading the floor visibly grows
-// it. Security nodes patrol as rotating turrets, cheaters pulse a red
-// marker over whatever zone they're hitting, and a scatter of ambient
-// Sparkles plus corner neon pillars dress the room.
+// Each game module is a small row of individual machines/tables instead
+// of one abstract pedestal: Neon Slots gets a bank of cabinets,
+// Holo-Blackjack and Neon Poker get rows of felt tables, and High-Roller
+// Roulette / Quantum Dice get one (or more, at higher capacity) big
+// single tables — a spinning wheel and a dice pit respectively. Machine
+// count scales with the module's capacity level, so upgrading the floor
+// visibly grows it. Security nodes patrol as rotating turrets, cheaters
+// pulse a red marker over whatever zone they're hitting, and a scatter of
+// ambient Sparkles plus neon pillars dress the room.
 
 import { Suspense, useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Grid, Html, Float, Sparkles } from "@react-three/drei";
 
 const ZONES = {
-  slots: { centerX: -6.5, color: "#33fff0", kind: "slots" },
-  blackjack: { centerX: 0, color: "#ff3ec8", kind: "blackjack" },
-  roulette: { centerX: 6.5, color: "#b6ff3a", kind: "roulette" },
+  slots: { centerX: -10, color: "#33fff0" },
+  blackjack: { centerX: -5, color: "#ff3ec8" },
+  roulette: { centerX: 0, color: "#b6ff3a" },
+  poker: { centerX: 5, color: "#ffb347" },
+  dice: { centerX: 10, color: "#ff6b4a" },
 };
 
+// Big single-table games (one wheel, one pit) don't multiply the same way
+// a bank of slot cabinets or a row of card tables does.
+const SINGLE_TABLE_GAMES = new Set(["roulette", "dice"]);
+
 function machineCount(game) {
-  if (game.key === "roulette") {
+  if (SINGLE_TABLE_GAMES.has(game.key)) {
     return Math.max(1, Math.min(3, Math.round(game.capacity / 6)));
   }
   return Math.max(2, Math.min(8, Math.round(game.capacity / 4)));
@@ -146,6 +153,92 @@ function RouletteWheel({ position, color, active, speed }) {
   );
 }
 
+function PokerTable({ position, color, active, phase }) {
+  const cardsRef = useRef(null);
+  useFrame(({ clock }) => {
+    if (!cardsRef.current) return;
+    const t = clock.getElapsedTime();
+    cardsRef.current.position.y = 0.63 + (active ? Math.sin(t * 1.5 + phase) * 0.01 : 0);
+  });
+
+  return (
+    <group position={position}>
+      {/* table legs */}
+      <mesh position={[0, 0.3, 0]}>
+        <boxGeometry args={[0.12, 0.6, 0.12]} />
+        <meshStandardMaterial color="#2a3346" />
+      </mesh>
+      {/* oval felt top */}
+      <mesh position={[0, 0.62, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.6, 0.6, 0.08, 24]} />
+        <meshStandardMaterial
+          color={active ? color : "#2a3346"}
+          emissive={active ? color : "#000000"}
+          emissiveIntensity={active ? 0.35 : 0}
+          toneMapped={false}
+        />
+      </mesh>
+      {/* the "board" — a fanned row of community cards */}
+      <group ref={cardsRef} position={[0, 0.63, 0]}>
+        {[-0.18, -0.06, 0.06, 0.18].map((dx, i) => (
+          <mesh key={i} position={[dx, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[0.1, 0.14]} />
+            <meshStandardMaterial
+              color="#f4f4f4"
+              emissive={color}
+              emissiveIntensity={active ? 0.3 : 0}
+              toneMapped={false}
+            />
+          </mesh>
+        ))}
+      </group>
+    </group>
+  );
+}
+
+function DiceTable({ position, color, active, phase }) {
+  const die1Ref = useRef(null);
+  const die2Ref = useRef(null);
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    if (die1Ref.current) {
+      die1Ref.current.rotation.set(t * 1.3 + phase, t * 1.7, t * 0.9);
+      die1Ref.current.position.y = 0.72 + Math.abs(Math.sin(t * 2.2 + phase)) * 0.12;
+    }
+    if (die2Ref.current) {
+      die2Ref.current.rotation.set(t * 1.6, t * 1.1 + phase, t * 1.4);
+      die2Ref.current.position.y = 0.72 + Math.abs(Math.sin(t * 2.2 + phase + 1.3)) * 0.12;
+    }
+  });
+
+  return (
+    <group position={position}>
+      {/* pit base */}
+      <mesh position={[0, 0.35, 0]}>
+        <boxGeometry args={[1.1, 0.7, 0.6]} />
+        <meshStandardMaterial color="#141a26" metalness={0.4} roughness={0.6} />
+      </mesh>
+      {/* glowing rail */}
+      <mesh position={[0, 0.68, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.46, 0.5, 4]} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={active ? 0.8 : 0.1} toneMapped={false} />
+      </mesh>
+      {active && (
+        <>
+          <mesh ref={die1Ref} position={[-0.15, 0.72, 0]}>
+            <boxGeometry args={[0.14, 0.14, 0.14]} />
+            <meshStandardMaterial color="#f4f4f4" emissive={color} emissiveIntensity={0.3} toneMapped={false} />
+          </mesh>
+          <mesh ref={die2Ref} position={[0.15, 0.72, 0]}>
+            <boxGeometry args={[0.14, 0.14, 0.14]} />
+            <meshStandardMaterial color="#f4f4f4" emissive={color} emissiveIntensity={0.3} toneMapped={false} />
+          </mesh>
+        </>
+      )}
+    </group>
+  );
+}
+
 function GuestCrowd({ count, spreadX, color }) {
   const groupRef = useRef(null);
   const offsets = useMemo(
@@ -211,21 +304,21 @@ function GameZone({ game }) {
         />
       </mesh>
 
-      {machines.map((m, i) =>
-        game.key === "roulette" ? (
-          <RouletteWheel
-            key={i}
-            position={[0, 0, m.z]}
-            color={zone.color}
-            active={game.unlocked}
-            speed={game.unlocked ? speed : 0}
-          />
-        ) : game.key === "blackjack" ? (
-          <BlackjackTable key={i} position={[0, 0, m.z]} color={zone.color} active={game.unlocked} phase={m.phase} />
-        ) : (
-          <SlotMachine key={i} position={[0, 0, m.z]} color={zone.color} active={game.unlocked} phase={m.phase} />
-        )
-      )}
+      {machines.map((m, i) => {
+        const common = { key: i, position: [0, 0, m.z], color: zone.color, active: game.unlocked, phase: m.phase };
+        switch (game.key) {
+          case "roulette":
+            return <RouletteWheel {...common} speed={game.unlocked ? speed : 0} />;
+          case "blackjack":
+            return <BlackjackTable {...common} />;
+          case "poker":
+            return <PokerTable {...common} />;
+          case "dice":
+            return <DiceTable {...common} />;
+          default:
+            return <SlotMachine {...common} />;
+        }
+      })}
 
       <pointLight
         position={[0, 1.8, 0]}
@@ -278,7 +371,7 @@ function NeonPillar({ position }) {
 
 function SecurityTurret({ index, total }) {
   const ref = useRef(null);
-  const radius = 10;
+  const radius = 15;
   const angle = (index / Math.max(total, 1)) * Math.PI * 2;
   const position = [Math.cos(angle) * radius, 0, Math.sin(angle) * radius];
 
@@ -331,10 +424,11 @@ function CheaterMarker({ cheater }) {
 }
 
 const PILLAR_POSITIONS = [
-  [-9.5, 0, -4],
-  [-9.5, 0, 4],
-  [9.5, 0, -4],
-  [9.5, 0, 4],
+  [-13.5, 0, -4],
+  [-13.5, 0, 4],
+  [0, 0, -4.5],
+  [13.5, 0, -4],
+  [13.5, 0, 4],
 ];
 
 function Scene({ games, cheaters, security }) {
@@ -347,16 +441,16 @@ function Scene({ games, cheaters, security }) {
       <directionalLight position={[6, 10, 4]} intensity={0.4} color="#9d4bff" />
 
       <Grid
-        args={[26, 26]}
+        args={[36, 36]}
         cellColor="#2a3346"
         sectionColor="#33fff0"
         cellThickness={0.5}
         sectionThickness={1}
-        fadeDistance={26}
+        fadeDistance={36}
         infiniteGrid
       />
 
-      <Sparkles count={60} scale={[20, 4, 14]} size={2} speed={0.2} color="#9d4bff" opacity={0.5} />
+      <Sparkles count={90} scale={[30, 4, 14]} size={2} speed={0.2} color="#9d4bff" opacity={0.5} />
 
       {gameList.map((game) => (
         <GameZone key={game.key} game={game} />
@@ -377,7 +471,7 @@ function Scene({ games, cheaters, security }) {
       <OrbitControls
         enablePan={false}
         minDistance={8}
-        maxDistance={24}
+        maxDistance={34}
         maxPolarAngle={Math.PI / 2.1}
       />
     </>
@@ -388,12 +482,12 @@ export default function FloorMap3D({ games, cheaters, security }) {
   return (
     <div className="floor3d-canvas-wrap">
       <Canvas
-        camera={{ position: [0, 9, 14], fov: 45 }}
+        camera={{ position: [0, 11, 20], fov: 45 }}
         dpr={[1, 1.5]}
         gl={{ antialias: true }}
       >
         <color attach="background" args={["#0a0e17"]} />
-        <fog attach="fog" args={["#0a0e17", 14, 30]} />
+        <fog attach="fog" args={["#0a0e17", 18, 40]} />
         <Suspense fallback={null}>
           <Scene games={games} cheaters={cheaters} security={security} />
         </Suspense>

@@ -44,6 +44,28 @@ export const GAME_DEFS = {
     unlockCost: 4000,
     description: "A magnetic-levitation wheel for whales only.",
   },
+  poker: {
+    key: "poker",
+    name: "Neon Poker",
+    icon: "🂡",
+    baseCapacity: 10,
+    baseUpkeep: 120,
+    avgBet: 45,
+    unlocked: false,
+    unlockCost: 6000,
+    description: "Five-card holo-boards and bluffing bots in mirrored shades.",
+  },
+  dice: {
+    key: "dice",
+    name: "Quantum Dice",
+    icon: "🎲",
+    baseCapacity: 8,
+    baseUpkeep: 110,
+    avgBet: 40,
+    unlocked: false,
+    unlockCost: 5000,
+    description: "A levitating craps pit where the dice never touch the felt.",
+  },
 };
 
 // Capacity/upkeep growth per upgrade level, and cost curve for upgrading.

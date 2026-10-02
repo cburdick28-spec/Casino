@@ -473,6 +473,12 @@ body {
 .game-card--roulette {
   border-color: rgba(182, 255, 58, 0.25);
 }
+.game-card--poker {
+  border-color: rgba(255, 179, 71, 0.25);
+}
+.game-card--dice {
+  border-color: rgba(255, 107, 74, 0.25);
+}
 
 .game-card-header {
   display: flex;
